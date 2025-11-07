@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Map as MapLibreMap } from 'maplibre-gl';
 import { StylingEngine, ClassificationMethod, COLOR_RAMPS } from '@/lib/services/stylingEngine';
+import { VectorLayer } from '@/lib/types/layer';
 import { toast } from 'sonner';
 
 export interface StylePanelProps {
-  layers: any[];
-  map: any;
+  layers: VectorLayer[];
+  map: MapLibreMap | null;
   onStyleApplied: () => void;
   className?: string;
 }
@@ -33,7 +35,8 @@ export default function StylePanel({
   }, [selectedLayerId, map]);
 
   const loadProperties = () => {
-    const source = map.getSource(selectedLayerId);
+    if (!map) return;
+    const source = map.getSource(selectedLayerId) as any;
     if (!source || !source._data) return;
 
     const geojson = source._data;
@@ -78,7 +81,7 @@ export default function StylePanel({
     const layer = layers.find(l => l.id === selectedLayerId);
     if (!layer) return;
 
-    const source = map.getSource(selectedLayerId);
+    const source = map.getSource(selectedLayerId) as any;
     const geojson = source?._data;
     const geomType = geojson?.features?.[0]?.geometry?.type;
 
@@ -106,7 +109,7 @@ export default function StylePanel({
   const applyChoroplethStyle = () => {
     if (!map || !selectedLayerId || !selectedProperty) return;
 
-    const source = map.getSource(selectedLayerId);
+    const source = map.getSource(selectedLayerId) as any;
     if (!source || !source._data) return;
 
     const geojson = source._data;
@@ -159,7 +162,7 @@ export default function StylePanel({
   const applyGraduatedStyle = () => {
     if (!map || !selectedLayerId || !selectedProperty) return;
 
-    const source = map.getSource(selectedLayerId);
+    const source = map.getSource(selectedLayerId) as any;
     if (!source || !source._data) return;
 
     const geojson = source._data;

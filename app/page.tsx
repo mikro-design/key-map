@@ -55,6 +55,45 @@ export default function Home() {
     setDebugLog(prev => [...prev, msg]);
   };
 
+  // Auto-save project when layers change (debounced)
+  useEffect(() => {
+    if (!map.current || layers.length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      try {
+        const project = {
+          id: 'keymap-autosave',
+          name: 'Auto-saved Project',
+          created: new Date().toISOString(),
+          center: map.current?.getCenter(),
+          zoom: map.current?.getZoom(),
+          basemap: {
+            id: basemap.id,
+            label: basemap.label
+          },
+          layers: layers.map(l => ({
+            id: l.id,
+            name: l.name,
+            type: l.type,
+            geometryType: l.geometryType,
+            visible: l.visible,
+            opacity: l.opacity,
+            data: l.data,
+            properties: l.properties,
+            source: l.source
+          }))
+        };
+
+        localStorage.setItem('keymap-autosave', JSON.stringify(project));
+        addLog(`Auto-saved ${layers.length} layers`);
+      } catch (error: any) {
+        addLog(`Auto-save failed: ${error.message}`);
+      }
+    }, 2000); // Debounce for 2 seconds
+
+    return () => clearTimeout(timeoutId);
+  }, [layers, basemap]);
+
   useEffect(() => {
     addLog('useEffect triggered');
     addLog(`Map exists: ${!!map.current}`);
@@ -113,6 +152,95 @@ export default function Home() {
           map.current?.resize();
           addLog(`New canvas size: ${map.current?.getCanvas().width}x${map.current?.getCanvas().height}`);
         }, 100);
+
+        // Auto-restore project from last session
+        setTimeout(() => {
+          try {
+            const autoSavedData = localStorage.getItem('keymap-autosave');
+            if (autoSavedData) {
+              const project = JSON.parse(autoSavedData);
+              if (project.layers && project.layers.length > 0) {
+                addLog(`Auto-restoring ${project.layers.length} layers from last session`);
+
+                // Restore map view
+                if (project.center && project.zoom && map.current) {
+                  map.current.setCenter([project.center.lng, project.center.lat]);
+                  map.current.setZoom(project.zoom);
+                }
+
+                // Restore layers
+                project.layers.forEach((layer: any) => {
+                  if (layer.data && map.current) {
+                    try {
+                      const layerId = layer.id;
+
+                      // Add source
+                      map.current.addSource(layerId, {
+                        type: 'geojson',
+                        data: layer.data
+                      });
+
+                      // Add layer based on geometry type
+                      const geomType = layer.geometryType;
+                      if (geomType === 'Point' || geomType === 'MultiPoint') {
+                        map.current.addLayer({
+                          id: layerId,
+                          type: 'circle',
+                          source: layerId,
+                          paint: {
+                            'circle-radius': layer.source === 'drawn' ? 8 : 6,
+                            'circle-color': layer.source === 'drawn' ? '#8b5cf6' : '#10b981',
+                            'circle-stroke-width': 2,
+                            'circle-stroke-color': '#fff'
+                          }
+                        });
+                      } else if (geomType === 'LineString' || geomType === 'MultiLineString') {
+                        map.current.addLayer({
+                          id: layerId,
+                          type: 'line',
+                          source: layerId,
+                          paint: {
+                            'line-color': layer.source === 'drawn' ? '#8b5cf6' : '#10b981',
+                            'line-width': 3
+                          }
+                        });
+                      } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+                        map.current.addLayer({
+                          id: `${layerId}-fill`,
+                          type: 'fill',
+                          source: layerId,
+                          paint: {
+                            'fill-color': layer.source === 'drawn' ? '#8b5cf6' : '#10b981',
+                            'fill-opacity': 0.3
+                          }
+                        });
+                        map.current.addLayer({
+                          id: layerId,
+                          type: 'line',
+                          source: layerId,
+                          paint: {
+                            'line-color': layer.source === 'drawn' ? '#8b5cf6' : '#10b981',
+                            'line-width': 2
+                          }
+                        });
+                      }
+
+                      setLayers((prev: any) => [...prev, layer]);
+                    } catch (err: any) {
+                      addLog(`Failed to restore layer ${layer.name}: ${err.message}`);
+                    }
+                  }
+                });
+
+                toast.info('Work restored', {
+                  description: `Automatically restored ${project.layers.length} layers from last session`
+                });
+              }
+            }
+          } catch (error: any) {
+            addLog(`Auto-restore failed: ${error.message}`);
+          }
+        }, 500); // Wait a bit for map to be fully ready
       });
 
       map.current.on('data', (e: any) => {
@@ -552,7 +680,7 @@ export default function Home() {
     setLayers((prev) => prev.filter((layer) => layer.id !== layerId));
   };
 
-  // Handle feature creation for measurements
+  // Handle feature creation for measurements and drawing
   const handleDrawCreate = (feature: any) => {
     const currentMode = drawingModeRef.current;
 
@@ -595,6 +723,88 @@ export default function Home() {
 
       setMeasurementResult(resultText);
       addLog(resultText);
+    } else if (currentMode === 'point' || currentMode === 'line' || currentMode === 'polygon') {
+      // Handle regular drawing - convert to layer
+      addLog(`Creating layer from drawn ${feature.geometry.type}`);
+
+      if (!map.current) return;
+
+      const layerId = `drawn-${Date.now()}`;
+      const geomType = feature.geometry.type;
+
+      // Create GeoJSON FeatureCollection
+      const geojson = {
+        type: 'FeatureCollection' as const,
+        features: [feature]
+      };
+
+      // Add source
+      map.current.addSource(layerId, {
+        type: 'geojson',
+        data: geojson
+      });
+
+      // Add layer based on geometry type
+      if (geomType === 'Point') {
+        map.current.addLayer({
+          id: layerId,
+          type: 'circle',
+          source: layerId,
+          paint: {
+            'circle-radius': 8,
+            'circle-color': '#8b5cf6',
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#fff'
+          }
+        });
+      } else if (geomType === 'LineString') {
+        map.current.addLayer({
+          id: layerId,
+          type: 'line',
+          source: layerId,
+          paint: {
+            'line-color': '#8b5cf6',
+            'line-width': 3
+          }
+        });
+      } else if (geomType === 'Polygon') {
+        map.current.addLayer({
+          id: `${layerId}-fill`,
+          type: 'fill',
+          source: layerId,
+          paint: {
+            'fill-color': '#8b5cf6',
+            'fill-opacity': 0.3
+          }
+        });
+        map.current.addLayer({
+          id: layerId,
+          type: 'line',
+          source: layerId,
+          paint: {
+            'line-color': '#8b5cf6',
+            'line-width': 2
+          }
+        });
+      }
+
+      // Add to layers list
+      const layerName = `Drawn ${geomType} ${new Date().toLocaleTimeString()}`;
+      setLayers(prev => [...prev, {
+        id: layerId,
+        name: layerName,
+        type: 'vector',
+        geometryType: geomType,
+        visible: true,
+        opacity: 1,
+        featureCount: 1,
+        data: geojson,
+        properties: Object.keys(feature.properties || {}),
+        source: 'drawn'
+      }]);
+
+      addLog(`✓ Created layer: ${layerName}`);
+      toast.success('Layer created', { description: layerName });
     }
   };
 
@@ -988,8 +1198,10 @@ export default function Home() {
           visible: true,
           opacity: 1,
           featureCount: metadata.featureCount,
+          data: geojson, // Store data for project save/load
           properties: metadata.properties,
-          bounds: metadata.bounds
+          bounds: metadata.bounds,
+          source: 'upload'
         }]);
 
       addLog(`✓ Successfully loaded: ${file.name} (${metadata.featureCount} features)`);
@@ -1235,6 +1447,17 @@ export default function Home() {
                     {drawingMode === 'measure-distance' && 'Measure Distance'}
                     {drawingMode === 'measure-area' && 'Measure Area'}
                   </div>
+                  {/* Live Measurement Display */}
+                  {liveDistance && (drawingMode === 'measure-distance' || drawingMode === 'line') && (
+                    <div className="text-xl font-bold mt-1 text-yellow-300">
+                      {liveDistance}
+                    </div>
+                  )}
+                  {liveArea && (drawingMode === 'measure-area' || drawingMode === 'polygon') && (
+                    <div className="text-xl font-bold mt-1 text-yellow-300">
+                      {liveArea}
+                    </div>
+                  )}
                 </div>
               </div>
               <button
@@ -1268,7 +1491,7 @@ export default function Home() {
                   <li>• <strong>Double-click</strong> to finish the line</li>
                   <li>• <strong>Press Enter</strong> to finish</li>
                   <li>• <strong>Press Escape</strong> to cancel</li>
-                  <li>• Distance calculated when you finish</li>
+                  <li>• Distance {liveDistance ? 'updating live' : 'calculated when you finish'}</li>
                 </ul>
               )}
               {(drawingMode === 'polygon' || drawingMode === 'measure-area') && (
@@ -1277,7 +1500,7 @@ export default function Home() {
                   <li>• <strong>Double-click</strong> to close and finish the polygon</li>
                   <li>• <strong>Press Enter</strong> to finish</li>
                   <li>• <strong>Press Escape</strong> to cancel</li>
-                  <li>• Area calculated when you finish</li>
+                  <li>• Area {liveArea ? 'updating live' : 'calculated when you finish'}</li>
                 </ul>
               )}
             </div>

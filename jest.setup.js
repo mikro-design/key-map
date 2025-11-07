@@ -49,6 +49,40 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
   observe() {}
   unobserve() {}
-} 
+}
+
+// Mock File API
+if (typeof File === 'undefined') {
+  global.File = class File {
+    constructor(parts, filename, options) {
+      this.parts = parts
+      this.name = filename
+      this.type = options?.type || ''
+      this.size = parts.reduce((acc, part) => acc + part.length, 0)
+    }
+
+    async text() {
+      return this.parts.join('')
+    }
+
+    async arrayBuffer() {
+      const text = await this.text()
+      const encoder = new TextEncoder()
+      return encoder.encode(text).buffer
+    }
+  }
+} else {
+  // Patch existing File class if needed
+  const OriginalFile = global.File
+  global.File = class File extends OriginalFile {
+    async text() {
+      if (super.text) {
+        return super.text()
+      }
+      // Fallback for test environments
+      return this.parts ? this.parts.join('') : ''
+    }
+  }
+}
 
 // Console suppression removed to allow proper test spying
