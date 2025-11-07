@@ -16,6 +16,7 @@ import AttributeTable from '@/components/map/AttributeTable';
 import StylePanel from '@/components/map/StylePanel';
 import HelpPanel from '@/components/map/HelpPanel';
 import SearchPanel from '@/components/map/SearchPanel';
+import CollaborationPanel from '@/components/map/CollaborationPanel';
 
 // Lazy load ProjectManager (includes Prisma/database logic)
 const ProjectManager = dynamic(() => import('@/components/map/ProjectManager'), {
@@ -30,6 +31,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import ErrorDialog from '@/components/ui/ErrorDialog';
 import { toast } from 'sonner';
 import { sanitizeSearchQuery, sanitizeFileName } from '@/lib/utils/sanitize';
+import { useCollaboration } from '@/lib/contexts/CollaborationContext';
+import type { FeatureCreateEvent, FeatureUpdateEvent, FeatureDeleteEvent } from '@/lib/types/collaboration';
 
 export default function Home() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -50,6 +53,9 @@ export default function Home() {
   const [error, setError] = useState<{ title: string; message: string; details?: any } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  // Collaboration
+  const { isConnected, currentUser, broadcast, onEvent } = useCollaboration();
 
   const addLog = (msg: string) => {
     console.log('[DEBUG]', msg);
@@ -94,6 +100,123 @@ export default function Home() {
 
     return () => clearTimeout(timeoutId);
   }, [layers, basemap]);
+
+  // Listen for collaboration events
+  useEffect(() => {
+    if (!isConnected || !map.current) return;
+
+    addLog('🔗 Listening for collaboration events...');
+
+    const unsubscribe = onEvent((event) => {
+      addLog(`📥 Received event: ${event.type} from user ${event.userId}`);
+
+      if (event.type === 'feature:create') {
+        const createEvent = event as FeatureCreateEvent;
+
+        // Check if this is a drawn feature or layer
+        if (createEvent.layerId.startsWith('drawn-')) {
+          // Add the feature to the map using the same logic as local drawing
+          if (!map.current) return;
+
+          const { layerId, feature } = createEvent;
+          const geomType = feature.geometry.type;
+
+          // Create GeoJSON FeatureCollection
+          const geojson = {
+            type: 'FeatureCollection' as const,
+            features: [feature]
+          };
+
+          // Add source if it doesn't exist
+          if (!map.current.getSource(layerId)) {
+            map.current.addSource(layerId, {
+              type: 'geojson',
+              data: geojson
+            });
+
+            // Add layer based on geometry type
+            if (geomType === 'Point') {
+              map.current.addLayer({
+                id: layerId,
+                type: 'circle',
+                source: layerId,
+                paint: {
+                  'circle-radius': 8,
+                  'circle-color': '#8b5cf6',
+                  'circle-stroke-width': 2,
+                  'circle-stroke-color': '#fff'
+                }
+              });
+            } else if (geomType === 'LineString') {
+              map.current.addLayer({
+                id: layerId,
+                type: 'line',
+                source: layerId,
+                paint: {
+                  'line-color': '#8b5cf6',
+                  'line-width': 3
+                }
+              });
+            } else if (geomType === 'Polygon') {
+              map.current.addLayer({
+                id: `${layerId}-fill`,
+                type: 'fill',
+                source: layerId,
+                paint: {
+                  'fill-color': '#8b5cf6',
+                  'fill-opacity': 0.3
+                }
+              });
+              map.current.addLayer({
+                id: layerId,
+                type: 'line',
+                source: layerId,
+                paint: {
+                  'line-color': '#8b5cf6',
+                  'line-width': 2
+                }
+              });
+            }
+
+            // Add to layers list (check if not already added)
+            setLayers((prev) => {
+              if (prev.some(l => l.id === layerId)) return prev;
+
+              const layerName = `Drawn ${geomType} (Remote)`;
+              return [...prev, {
+                id: layerId,
+                name: layerName,
+                type: 'vector',
+                geometryType: geomType,
+                visible: true,
+                opacity: 1,
+                featureCount: 1,
+                data: geojson,
+                properties: Object.keys(feature.properties || {}),
+                source: 'drawn-remote'
+              }];
+            });
+
+            addLog(`✓ Added remote feature: ${layerId}`);
+            toast.info('Collaborator drew a feature', {
+              description: `${geomType} from remote user`,
+              duration: 2000,
+            });
+          }
+        }
+      } else if (event.type === 'feature:update') {
+        const updateEvent = event as FeatureUpdateEvent;
+        // TODO: Handle feature updates
+        addLog(`📝 Feature updated: ${updateEvent.featureId}`);
+      } else if (event.type === 'feature:delete') {
+        const deleteEvent = event as FeatureDeleteEvent;
+        // TODO: Handle feature deletes
+        addLog(`🗑️ Feature deleted: ${deleteEvent.featureId}`);
+      }
+    });
+
+    return unsubscribe;
+  }, [isConnected, onEvent, map.current]);
 
   useEffect(() => {
     addLog('useEffect triggered');
@@ -847,6 +970,16 @@ export default function Home() {
 
       addLog(`✓ Created layer: ${layerName}`);
       toast.success('Layer created', { description: layerName });
+
+      // Broadcast to collaborators
+      if (isConnected) {
+        broadcast({
+          type: 'feature:create',
+          layerId,
+          feature,
+        } as Omit<FeatureCreateEvent, 'userId' | 'timestamp'>);
+        addLog(`📡 Broadcasted feature creation to collaborators`);
+      }
     }
   };
 
@@ -1399,6 +1532,7 @@ export default function Home() {
           basemap={basemap}
           onProjectLoaded={handleProjectLoaded}
         />
+        <CollaborationPanel />
         <SearchPanel
           map={map.current}
           onLog={addLog}

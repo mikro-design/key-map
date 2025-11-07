@@ -180,7 +180,7 @@ export default function SearchPanel({ map, onLog }: SearchPanelProps) {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Example: "Oslo", "Times Square, New York", "Eiffel Tower"
+                  Example: &quot;Oslo&quot;, &quot;Times Square, New York&quot;, &quot;Eiffel Tower&quot;
                 </p>
               </div>
 
