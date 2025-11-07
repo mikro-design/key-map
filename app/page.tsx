@@ -341,7 +341,7 @@ export default function Home() {
         const geomType = e.features[0]?.geometry?.type;
         addLog(`Feature updated: mode=${currentMode}, geom=${geomType}`);
 
-        // Show live distance during line drawing
+        // Show live distance during line drawing OR when editing lines
         if (currentMode === 'measure-distance' || currentMode === 'line') {
           const features = e.features;
           if (features.length > 0 && features[0].geometry.type === 'LineString') {
@@ -358,9 +358,27 @@ export default function Home() {
               }
             }
           }
+        } else if (e.features.length > 0 && e.features[0].geometry.type === 'LineString') {
+          // Editing existing line - update measurement result if it exists
+          const coords = e.features[0].geometry.coordinates;
+          if (coords.length >= 2) {
+            const line = lineString(coords);
+            const lineLength = length(line, { units: 'kilometers' });
+            const lengthMeters = lineLength * 1000;
+
+            let resultText = '';
+            if (lengthMeters < 1000) {
+              resultText = `Distance: ${lengthMeters.toFixed(2)} m`;
+            } else {
+              resultText = `Distance: ${lineLength.toFixed(2)} km`;
+            }
+
+            setMeasurementResult(resultText);
+            addLog(`Updated measurement: ${resultText}`);
+          }
         }
 
-        // Show live area during polygon drawing
+        // Show live area during polygon drawing OR when editing polygons
         if (currentMode === 'measure-area' || currentMode === 'polygon') {
           const features = e.features;
           if (features.length > 0 && features[0].geometry.type === 'Polygon') {
@@ -380,6 +398,29 @@ export default function Home() {
               } catch (error) {
                 // Polygon not valid yet
               }
+            }
+          }
+        } else if (e.features.length > 0 && e.features[0].geometry.type === 'Polygon') {
+          // Editing existing polygon - update measurement result if it exists
+          const coords = e.features[0].geometry.coordinates;
+          if (coords[0].length >= 4) {
+            try {
+              const poly = polygon(coords);
+              const polygonArea = area(poly);
+
+              let resultText = '';
+              if (polygonArea < 10000) {
+                resultText = `Area: ${polygonArea.toFixed(2)} m²`;
+              } else if (polygonArea < 1000000) {
+                resultText = `Area: ${(polygonArea / 10000).toFixed(2)} ha`;
+              } else {
+                resultText = `Area: ${(polygonArea / 1000000).toFixed(2)} km²`;
+              }
+
+              setMeasurementResult(resultText);
+              addLog(`Updated measurement: ${resultText}`);
+            } catch (error) {
+              // Polygon not valid
             }
           }
         }
