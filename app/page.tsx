@@ -15,6 +15,7 @@ import SpatialAnalysisPanel from '@/components/map/SpatialAnalysisPanel';
 import AttributeTable from '@/components/map/AttributeTable';
 import StylePanel from '@/components/map/StylePanel';
 import HelpPanel from '@/components/map/HelpPanel';
+import SearchPanel from '@/components/map/SearchPanel';
 
 // Lazy load ProjectManager (includes Prisma/database logic)
 const ProjectManager = dynamic(() => import('@/components/map/ProjectManager'), {
@@ -1349,23 +1350,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* Debug Panel - Overlay, scrollable inside */}
-      <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none">
-        <div className="bg-black/90 text-green-400 p-2 font-mono text-xs max-h-32 overflow-y-auto pointer-events-auto">
-          <div className="font-bold mb-1">DEBUG LOG:</div>
-          {debugLog.map((log, i) => (
-            <div key={i}>{log}</div>
-          ))}
-        </div>
-      </div>
-
       {/* UI Controls - Top Left */}
-      <div className="absolute top-40 left-4 z-10 flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         <ProjectManager
           map={map.current}
           layers={layers}
           basemap={basemap}
           onProjectLoaded={handleProjectLoaded}
+        />
+        <SearchPanel
+          map={map.current}
+          onLog={addLog}
         />
         <ToolsPanel
           onDrawPoint={handleDrawPoint}
@@ -1405,32 +1400,28 @@ export default function Home() {
       </div>
 
       {/* Title & Help - Top Right */}
-      <div className="absolute top-40 right-4 z-10 flex flex-col gap-2">
-        <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 px-3 py-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
             KeyMap
           </h1>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            Open Atlas Platform
-          </p>
         </div>
 
         {/* Help Button */}
         <button
           onClick={() => setIsHelpOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg shadow-md border border-blue-500 transition-colors flex items-center gap-2 justify-center group"
+          className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-md border border-blue-500 transition-colors"
           title="Open Help & Documentation"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="font-semibold">Help</span>
         </button>
       </div>
 
       {/* Active Drawing Instructions - Top Center */}
       {drawingMode && (
-        <div className="absolute top-40 left-1/2 -translate-x-1/2 z-10 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-4 rounded-lg shadow-xl border-2 border-white/30 min-w-[400px]">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-lg shadow-xl border-2 border-white/30 min-w-[350px]">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1477,58 +1468,31 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="bg-black/20 rounded p-3 text-sm">
-              <div className="font-semibold mb-2">📖 Instructions:</div>
-              {drawingMode === 'point' && (
-                <ul className="space-y-1 text-xs">
-                  <li>• <strong>Click</strong> anywhere on the map to place a point</li>
-                  <li>• Point will be created immediately</li>
-                </ul>
-              )}
-              {(drawingMode === 'line' || drawingMode === 'measure-distance') && (
-                <ul className="space-y-1 text-xs">
-                  <li>• <strong>Click</strong> to add points along the line</li>
-                  <li>• <strong>Double-click</strong> to finish the line</li>
-                  <li>• <strong>Press Enter</strong> to finish</li>
-                  <li>• <strong>Press Escape</strong> to cancel</li>
-                  <li>• Distance {liveDistance ? 'updating live' : 'calculated when you finish'}</li>
-                </ul>
-              )}
-              {(drawingMode === 'polygon' || drawingMode === 'measure-area') && (
-                <ul className="space-y-1 text-xs">
-                  <li>• <strong>Click</strong> to add points around the perimeter</li>
-                  <li>• <strong>Double-click</strong> to close and finish the polygon</li>
-                  <li>• <strong>Press Enter</strong> to finish</li>
-                  <li>• <strong>Press Escape</strong> to cancel</li>
-                  <li>• Area {liveArea ? 'updating live' : 'calculated when you finish'}</li>
-                </ul>
-              )}
+            <div className="text-xs text-white/80">
+              {drawingMode === 'point' && 'Click anywhere to place a point'}
+              {(drawingMode === 'line' || drawingMode === 'measure-distance') && 'Click to add points • Double-click or Enter to finish'}
+              {(drawingMode === 'polygon' || drawingMode === 'measure-area') && 'Click to add points • Double-click or Enter to finish'}
             </div>
           </div>
         </div>
       )}
 
-      {/* Measurement Result - Below Instructions */}
+      {/* Measurement Result */}
       {measurementResult && !drawingMode && (
-        <div className="absolute top-40 left-1/2 -translate-x-1/2 z-10 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg border-2 border-green-400">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">✅</span>
-            <div>
-              <div className="text-xs uppercase tracking-wide opacity-90">Measurement Complete</div>
-              <div className="text-lg font-bold">{measurementResult}</div>
-            </div>
-            <button
-              onClick={() => {
-                setMeasurementResult(null);
-                if (draw.current) {
-                  draw.current.deleteAll();
-                }
-              }}
-              className="ml-2 px-2 py-1 bg-green-700 hover:bg-green-800 rounded text-sm"
-            >
-              Clear
-            </button>
-          </div>
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg border border-green-400 flex items-center gap-2">
+          <span className="text-lg">✅</span>
+          <div className="font-bold">{measurementResult}</div>
+          <button
+            onClick={() => {
+              setMeasurementResult(null);
+              if (draw.current) {
+                draw.current.deleteAll();
+              }
+            }}
+            className="ml-2 px-2 py-1 bg-green-700 hover:bg-green-800 rounded text-xs"
+          >
+            Clear
+          </button>
         </div>
       )}
 
@@ -1537,32 +1501,6 @@ export default function Home() {
         attributions={basemap.attribution}
         position="bottom-right"
       />
-
-      {/* Info Panel - Bottom Left */}
-      <div className="absolute bottom-12 left-4 z-10 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm px-3 py-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 max-w-sm">
-        <div className="text-xs text-gray-700 dark:text-gray-300">
-          <p className="font-bold mb-2">🗺️ KeyMap - Professional GIS Platform</p>
-
-          <div className="space-y-1">
-            <p>💾 <strong>Projects:</strong> Save/load your work, export/import</p>
-            <p>🎨 <strong>Styling:</strong> Choropleth maps, graduated symbols</p>
-            <p>📂 <strong>Import:</strong> Shapefile, KML, GPX, CSV, GeoJSON</p>
-            <p>⚡ <strong>Analysis:</strong> Buffer, intersection, union, difference</p>
-            <p>📊 <strong>Table:</strong> View/filter/export attributes</p>
-            <p>🎯 <strong>Tools:</strong> Draw, measure, search, geocode</p>
-            <p>✏️ <strong>Edit:</strong> Click drawn features to reshape/move</p>
-          </div>
-
-          <p className="font-semibold mt-3 mb-1">Try this workflow:</p>
-          <div className="text-[10px] space-y-1 opacity-90">
-            <p>1. Upload Shapefile/CSV data</p>
-            <p>2. Style → Choropleth map by attribute</p>
-            <p>3. Analysis → Buffer features</p>
-            <p>4. Table → Export results</p>
-            <p>5. Projects → Save your work!</p>
-          </div>
-        </div>
-      </div>
 
       {/* Add Layer Dialog */}
       <AddLayerDialog
