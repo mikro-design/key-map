@@ -15,6 +15,7 @@ import SpatialAnalysisPanel from '@/components/map/SpatialAnalysisPanel';
 import AttributeTable from '@/components/map/AttributeTable';
 import StylePanel from '@/components/map/StylePanel';
 import HelpPanel from '@/components/map/HelpPanel';
+import SearchPanel from '@/components/map/SearchPanel';
 
 // Lazy load ProjectManager (includes Prisma/database logic)
 const ProjectManager = dynamic(() => import('@/components/map/ProjectManager'), {
@@ -1366,6 +1367,10 @@ export default function Home() {
           layers={layers}
           basemap={basemap}
           onProjectLoaded={handleProjectLoaded}
+        />
+        <SearchPanel
+          map={map.current}
+          onLog={addLog}
         />
         <ToolsPanel
           onDrawPoint={handleDrawPoint}
