@@ -16,6 +16,7 @@ import AttributeTable from '@/components/map/AttributeTable';
 import StylePanel from '@/components/map/StylePanel';
 import HelpPanel from '@/components/map/HelpPanel';
 import SearchPanel from '@/components/map/SearchPanel';
+import CollaborationPanel from '@/components/map/CollaborationPanel';
 
 // Lazy load ProjectManager (includes Prisma/database logic)
 const ProjectManager = dynamic(() => import('@/components/map/ProjectManager'), {
@@ -1399,6 +1400,7 @@ export default function Home() {
           basemap={basemap}
           onProjectLoaded={handleProjectLoaded}
         />
+        <CollaborationPanel />
         <SearchPanel
           map={map.current}
           onLog={addLog}
