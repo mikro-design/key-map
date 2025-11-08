@@ -285,6 +285,57 @@ export const SPECIALIZED_BASEMAPS: MapSource[] = [
 ];
 
 /**
+ * Agriculture and Environment basemaps
+ */
+export const AGRICULTURE_ENVIRONMENT_BASEMAPS: MapSource[] = [
+  {
+    id: 'usda-naip',
+    label: 'US Aerial Imagery (NAIP)',
+    type: 'raster',
+    tileUrl: 'https://gis.apfo.usda.gov/arcgis/rest/services/NAIP/USDA_CONUS_PRIME/ImageServer/tile/{z}/{y}/{x}',
+    license: 'Open',
+    attribution: [
+      { text: '© USDA APFO', url: 'https://www.fsa.usda.gov/programs-and-services/aerial-photography/imagery-programs/naip-imagery/', required: true },
+      { text: 'National Agriculture Imagery Program', url: '', required: true },
+    ],
+    maxZoom: 17,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'High-resolution aerial imagery of US agricultural areas (1m resolution, updated 2-3 years)',
+  },
+  {
+    id: 'esa-worldcover',
+    label: 'Global Land Cover (ESA)',
+    type: 'raster',
+    tileUrl: 'https://services.terrascope.be/wmts/v2/wmts?service=wmts&request=GetTile&version=1.0.0&layer=WORLDCOVER_2021_MAP&style=default&format=image/png&TileMatrixSet=EPSG:3857&TileMatrix={z}&TileRow={y}&TileCol={x}',
+    license: 'CC-BY-4.0',
+    attribution: [
+      { text: '© ESA WorldCover', url: 'https://esa-worldcover.org/', required: true },
+      { text: 'Powered by Copernicus Sentinel-1 & Sentinel-2', url: 'https://terrascope.be/', required: true },
+    ],
+    maxZoom: 13,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Global land cover map with 11 classes including forest/trees (10m resolution)',
+  },
+  {
+    id: 'nasa-smap-soil',
+    label: 'Soil Moisture (NASA SMAP)',
+    type: 'raster',
+    tileUrl: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/SMAP_L4_Analyzed_Surface_Soil_Moisture/default/{time}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png',
+    license: 'Open',
+    attribution: [
+      { text: '© NASA EOSDIS GIBS', url: 'https://www.earthdata.nasa.gov/gibs', required: true },
+      { text: 'SMAP Mission', url: 'https://smap.jpl.nasa.gov/', required: true },
+    ],
+    maxZoom: 7,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Global soil moisture from NASA SMAP satellite (9km resolution, 3-day updates)',
+  },
+];
+
+/**
  * All basemap categories organized
  */
 export const BASEMAP_CATEGORIES: BasemapCategory[] = [
@@ -297,6 +348,11 @@ export const BASEMAP_CATEGORIES: BasemapCategory[] = [
     id: 'satellite',
     label: 'Satellite',
     sources: SATELLITE_BASEMAPS,
+  },
+  {
+    id: 'agriculture',
+    label: 'Agriculture & Environment',
+    sources: AGRICULTURE_ENVIRONMENT_BASEMAPS,
   },
   {
     id: 'specialized',
