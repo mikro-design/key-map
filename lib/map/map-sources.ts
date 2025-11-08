@@ -202,6 +202,51 @@ export const SATELLITE_BASEMAPS: MapSource[] = [
     selfHostable: false,
     description: 'Satellite imagery with vector labels overlay',
   },
+  {
+    id: 'noaa-goes-composite',
+    label: 'GOES Satellite (NOAA)',
+    type: 'raster',
+    tileUrl: 'https://nowcoast.noaa.gov/arcgis/rest/services/nowcoast/sat_meteo_imagery_time/MapServer/tile/{z}/{y}/{x}',
+    license: 'Open',
+    attribution: [
+      { text: '© NOAA', url: 'https://www.noaa.gov/', required: true },
+      { text: 'GOES-East/West Composite', url: 'https://nowcoast.noaa.gov/', required: true },
+    ],
+    maxZoom: 10,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Real-time GOES-East and GOES-West satellite imagery (15-min updates)',
+  },
+  {
+    id: 'nasa-gibs-modis',
+    label: 'MODIS True Color (NASA)',
+    type: 'raster',
+    tileUrl: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+    license: 'Open',
+    attribution: [
+      { text: '© NASA EOSDIS GIBS', url: 'https://www.earthdata.nasa.gov/gibs', required: true },
+      { text: 'MODIS/Terra', url: 'https://modis.gsfc.nasa.gov/', required: true },
+    ],
+    maxZoom: 9,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'NASA MODIS true color imagery (daily, 250m resolution)',
+  },
+  {
+    id: 'nasa-gibs-viirs',
+    label: 'VIIRS True Color (NASA)',
+    type: 'raster',
+    tileUrl: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+    license: 'Open',
+    attribution: [
+      { text: '© NASA EOSDIS GIBS', url: 'https://www.earthdata.nasa.gov/gibs', required: true },
+      { text: 'VIIRS/Suomi NPP', url: 'https://www.earthdata.nasa.gov/data/instruments/viirs', required: true },
+    ],
+    maxZoom: 9,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'NASA VIIRS true color imagery (daily, 750m resolution)',
+  },
 ];
 
 /**
@@ -240,6 +285,93 @@ export const SPECIALIZED_BASEMAPS: MapSource[] = [
 ];
 
 /**
+ * Agriculture and Environment basemaps
+ */
+export const AGRICULTURE_ENVIRONMENT_BASEMAPS: MapSource[] = [
+  {
+    id: 'usda-naip',
+    label: 'US Aerial Imagery (NAIP)',
+    type: 'raster',
+    tileUrl: 'https://gis.apfo.usda.gov/arcgis/rest/services/NAIP/USDA_CONUS_PRIME/ImageServer/tile/{z}/{y}/{x}',
+    license: 'Open',
+    attribution: [
+      { text: '© USDA APFO', url: 'https://www.fsa.usda.gov/programs-and-services/aerial-photography/imagery-programs/naip-imagery/', required: true },
+      { text: 'National Agriculture Imagery Program', url: '', required: true },
+    ],
+    maxZoom: 17,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'High-resolution aerial imagery of US agricultural areas (1m resolution, updated 2-3 years)',
+  },
+  {
+    id: 'esa-worldcover',
+    label: 'Global Land Cover (ESA)',
+    type: 'raster',
+    tileUrl: 'https://services.terrascope.be/wmts/v2/wmts?service=wmts&request=GetTile&version=1.0.0&layer=WORLDCOVER_2021_MAP&style=default&format=image/png&TileMatrixSet=EPSG:3857&TileMatrix={z}&TileRow={y}&TileCol={x}',
+    license: 'CC-BY-4.0',
+    attribution: [
+      { text: '© ESA WorldCover', url: 'https://esa-worldcover.org/', required: true },
+      { text: 'Powered by Copernicus Sentinel-1 & Sentinel-2', url: 'https://terrascope.be/', required: true },
+    ],
+    maxZoom: 13,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Global land cover map with 11 classes including forest/trees (10m resolution)',
+  },
+  {
+    id: 'nasa-smap-soil',
+    label: 'Soil Moisture (NASA SMAP)',
+    type: 'raster',
+    tileUrl: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/SMAP_L4_Analyzed_Surface_Soil_Moisture/default/{time}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png',
+    license: 'Open',
+    attribution: [
+      { text: '© NASA EOSDIS GIBS', url: 'https://www.earthdata.nasa.gov/gibs', required: true },
+      { text: 'SMAP Mission', url: 'https://smap.jpl.nasa.gov/', required: true },
+    ],
+    maxZoom: 7,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Global soil moisture from NASA SMAP satellite (9km resolution, 3-day updates)',
+  },
+];
+
+/**
+ * Weather and Climate basemaps
+ */
+export const WEATHER_BASEMAPS: MapSource[] = [
+  {
+    id: 'noaa-radar',
+    label: 'Weather Radar (NOAA)',
+    type: 'raster',
+    tileUrl: 'https://nowcoast.noaa.gov/arcgis/rest/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/tile/{z}/{y}/{x}',
+    license: 'Open',
+    attribution: [
+      { text: '© NOAA', url: 'https://www.noaa.gov/', required: true },
+      { text: 'NEXRAD Weather Radar', url: 'https://nowcoast.noaa.gov/', required: true },
+    ],
+    maxZoom: 12,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Real-time weather radar reflectivity (US, updates every 4 minutes)',
+  },
+  {
+    id: 'rainviewer-radar',
+    label: 'Precipitation Radar (Global)',
+    type: 'raster',
+    tileUrl: 'https://tilecache.rainviewer.com/v2/radar/{time}/256/{z}/{x}/{y}/2/1_1.png',
+    license: 'Free-View-Only',
+    attribution: [
+      { text: '© RainViewer', url: 'https://www.rainviewer.com/', required: true },
+      { text: 'Global Radar Data', url: '', required: true },
+    ],
+    maxZoom: 12,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Global precipitation radar (updates every 5 minutes, 1-min lag)',
+  },
+];
+
+/**
  * All basemap categories organized
  */
 export const BASEMAP_CATEGORIES: BasemapCategory[] = [
@@ -252,6 +384,16 @@ export const BASEMAP_CATEGORIES: BasemapCategory[] = [
     id: 'satellite',
     label: 'Satellite',
     sources: SATELLITE_BASEMAPS,
+  },
+  {
+    id: 'weather',
+    label: 'Weather & Climate',
+    sources: WEATHER_BASEMAPS,
+  },
+  {
+    id: 'agriculture',
+    label: 'Agriculture & Environment',
+    sources: AGRICULTURE_ENVIRONMENT_BASEMAPS,
   },
   {
     id: 'specialized',

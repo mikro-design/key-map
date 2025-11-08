@@ -17,6 +17,8 @@ import StylePanel from '@/components/map/StylePanel';
 import HelpPanel from '@/components/map/HelpPanel';
 import SearchPanel from '@/components/map/SearchPanel';
 import CollaborationPanel from '@/components/map/CollaborationPanel';
+import AttributeEditor from '@/components/map/AttributeEditor';
+import AreaIntelligence, { fetchAreaData, type AreaData } from '@/components/map/AreaIntelligence';
 
 // Lazy load ProjectManager (includes Prisma/database logic)
 const ProjectManager = dynamic(() => import('@/components/map/ProjectManager'), {
@@ -54,8 +56,17 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
+  // Attribute editing
+  const [editingFeature, setEditingFeature] = useState<any>(null);
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+
+  // Area Intelligence
+  const [areaIntelligenceMode, setAreaIntelligenceMode] = useState(false);
+  const [areaIntelligenceData, setAreaIntelligenceData] = useState<AreaData | null>(null);
+  const [isLoadingAreaData, setIsLoadingAreaData] = useState(false);
+
   // Collaboration
-  const { isConnected, currentUser, broadcast, onEvent } = useCollaboration();
+  const { isConnected, currentUser, broadcast, onEvent} = useCollaboration();
 
   const addLog = (msg: string) => {
     console.log('[DEBUG]', msg);
@@ -206,8 +217,44 @@ export default function Home() {
         }
       } else if (event.type === 'feature:update') {
         const updateEvent = event as FeatureUpdateEvent;
-        // TODO: Handle feature updates
-        addLog(`📝 Feature updated: ${updateEvent.featureId}`);
+        addLog(`📝 Feature updated: ${updateEvent.featureId} in layer ${updateEvent.layerId}`);
+
+        // Update the layer data with new feature
+        setLayers(prevLayers => {
+          return prevLayers.map(layer => {
+            if (layer.id === updateEvent.layerId && layer.data) {
+              // Update the feature in the GeoJSON data
+              const updatedData = {
+                ...layer.data,
+                features: layer.data.features.map((f: any) => {
+                  // Match by feature id
+                  if (f.id === updateEvent.featureId || f.properties?.id === updateEvent.featureId) {
+                    return updateEvent.feature;
+                  }
+                  return f;
+                })
+              };
+
+              // Update the map source
+              const source = map.current?.getSource(updateEvent.layerId) as maplibregl.GeoJSONSource;
+              if (source) {
+                source.setData(updatedData);
+              }
+
+              return {
+                ...layer,
+                data: updatedData,
+                properties: Object.keys(updateEvent.feature.properties || {})
+              };
+            }
+            return layer;
+          });
+        });
+
+        toast.info('Collaborator updated feature', {
+          description: 'Feature properties updated by remote user',
+          duration: 2000,
+        });
       } else if (event.type === 'feature:delete') {
         const deleteEvent = event as FeatureDeleteEvent;
         // TODO: Handle feature deletes
@@ -233,7 +280,26 @@ export default function Home() {
       return;
     }
 
-    const tileUrl = basemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    let tileUrl = basemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    // Replace {time} placeholder
+    if (tileUrl.includes('{time}')) {
+      if (basemap.id.includes('rainviewer')) {
+        // RainViewer uses Unix timestamp (current time for latest radar)
+        const timestamp = Math.floor(Date.now() / 1000);
+        tileUrl = tileUrl.replace('{time}', String(timestamp));
+        addLog(`Using timestamp for RainViewer: ${timestamp}`);
+      } else {
+        // NASA GIBS uses YYYY-MM-DD format
+        const today = new Date();
+        // Use yesterday's date to ensure data availability
+        today.setDate(today.getDate() - 1);
+        const timeString = today.toISOString().split('T')[0];
+        tileUrl = tileUrl.replace('{time}', timeString);
+        addLog(`Using date for satellite imagery: ${timeString}`);
+      }
+    }
+
     addLog(`Using tile URL: ${tileUrl}`);
 
     try {
@@ -375,6 +441,30 @@ export default function Home() {
 
       map.current.on('error', (e) => {
         addLog(`Map error: ${e.error?.message || JSON.stringify(e)}`);
+      });
+
+      // Area Intelligence click handler
+      map.current.on('click', async (e) => {
+        if (!areaIntelligenceMode) return;
+
+        setIsLoadingAreaData(true);
+        addLog(`Fetching area data for: ${e.lngLat.lat.toFixed(6)}, ${e.lngLat.lng.toFixed(6)}`);
+
+        try {
+          const data = await fetchAreaData(e.lngLat.lng, e.lngLat.lat);
+          setAreaIntelligenceData(data);
+          setAreaIntelligenceMode(false); // Auto-disable after getting info
+          toast.success('Area data loaded', {
+            description: 'Comprehensive information retrieved'
+          });
+        } catch (error: any) {
+          toast.error('Failed to fetch area data', {
+            description: error.message
+          });
+          addLog(`Area data fetch failed: ${error.message}`);
+        } finally {
+          setIsLoadingAreaData(false);
+        }
       });
 
       map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -623,7 +713,25 @@ export default function Home() {
     }
 
     // Change the basemap style while keeping layers
-    const tileUrl = newBasemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    let tileUrl = newBasemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    // Replace {time} placeholder
+    if (tileUrl.includes('{time}')) {
+      if (newBasemap.id.includes('rainviewer')) {
+        // RainViewer uses Unix timestamp (current time for latest radar)
+        const timestamp = Math.floor(Date.now() / 1000);
+        tileUrl = tileUrl.replace('{time}', String(timestamp));
+        addLog(`Using timestamp for RainViewer: ${timestamp}`);
+      } else {
+        // NASA GIBS uses YYYY-MM-DD format
+        const today = new Date();
+        // Use yesterday's date to ensure data availability
+        today.setDate(today.getDate() - 1);
+        const timeString = today.toISOString().split('T')[0];
+        tileUrl = tileUrl.replace('{time}', timeString);
+        addLog(`Using date for satellite imagery: ${timeString}`);
+      }
+    }
 
     const newStyle = {
       version: 8,
@@ -1315,9 +1423,32 @@ export default function Home() {
             html += '<p style="color: #9ca3af; font-size: 13px;">No properties available</p>';
           }
 
+          // Add Edit button
+          html += '<div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e5e7eb;">';
+          html += '<button id="edit-feature-btn" style="width: 100%; padding: 6px 12px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">Edit Properties</button>';
+          html += '</div>';
+
           html += '</div>';
 
           popup.setLngLat(coordinates).setHTML(html).addTo(map.current);
+
+          // Add event listener to Edit button
+          setTimeout(() => {
+            const editBtn = document.getElementById('edit-feature-btn');
+            if (editBtn) {
+              editBtn.onclick = () => {
+                // Store feature data for editing
+                setEditingFeature({
+                  ...feature,
+                  geometry: feature.geometry,
+                  properties: { ...properties },
+                  id: feature.id
+                });
+                setEditingLayerId(layerId);
+                popup.remove();
+              };
+            }
+          }, 0);
         };
 
         // Add click handlers based on layer type
@@ -1500,6 +1631,64 @@ export default function Home() {
     addLog(`Exported ${features.features.length} features`);
   };
 
+  // Handle attribute save
+  const handleSaveAttributes = (layerId: string, featureId: string | number, properties: Record<string, any>) => {
+    if (!map.current) return;
+
+    addLog(`Saving attributes for feature ${featureId} in layer ${layerId}`);
+
+    let updatedFeature: any = null;
+
+    // Update the layer data
+    setLayers(prevLayers => {
+      return prevLayers.map(layer => {
+        if (layer.id === layerId && layer.data) {
+          // Update the feature in the GeoJSON data
+          const updatedData = {
+            ...layer.data,
+            features: layer.data.features.map((f: any) => {
+              // Match by feature id or if it's the same feature object
+              if (f.id === featureId || (f.properties?.id === featureId)) {
+                updatedFeature = {
+                  ...f,
+                  properties: properties
+                };
+                return updatedFeature;
+              }
+              return f;
+            })
+          };
+
+          // Update the map source
+          const source = map.current?.getSource(layerId) as maplibregl.GeoJSONSource;
+          if (source) {
+            source.setData(updatedData);
+          }
+
+          return {
+            ...layer,
+            data: updatedData,
+            properties: Object.keys(properties)
+          };
+        }
+        return layer;
+      });
+    });
+
+    // Broadcast to collaborators
+    if (isConnected && updatedFeature) {
+      broadcast({
+        type: 'feature:update',
+        layerId,
+        featureId: String(featureId),
+        feature: updatedFeature,
+      } as Omit<FeatureUpdateEvent, 'userId' | 'timestamp'>);
+      addLog(`📡 Broadcasted attribute update to collaborators`);
+    }
+
+    toast.success('Attributes updated', { description: 'Feature properties saved successfully' });
+  };
+
   return (
     <main className="fixed inset-0 w-full h-full">
       {/* Map Container - Full screen */}
@@ -1571,6 +1760,13 @@ export default function Home() {
           onLayerOpacityChange={handleLayerOpacityChange}
           onLayerRemove={handleLayerRemove}
           onAddLayer={handleAddLayer}
+        />
+        <AreaIntelligence
+          onRequestAreaInfo={() => setAreaIntelligenceMode(!areaIntelligenceMode)}
+          isActive={areaIntelligenceMode}
+          areaData={areaIntelligenceData}
+          isLoading={isLoadingAreaData}
+          onClear={() => setAreaIntelligenceData(null)}
         />
       </div>
 
@@ -1701,6 +1897,17 @@ export default function Home() {
       <HelpPanel
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
+      />
+
+      {/* Attribute Editor */}
+      <AttributeEditor
+        feature={editingFeature}
+        layerId={editingLayerId}
+        onClose={() => {
+          setEditingFeature(null);
+          setEditingLayerId(null);
+        }}
+        onSave={handleSaveAttributes}
       />
     </main>
   );
