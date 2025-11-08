@@ -18,6 +18,7 @@ import HelpPanel from '@/components/map/HelpPanel';
 import SearchPanel from '@/components/map/SearchPanel';
 import CollaborationPanel from '@/components/map/CollaborationPanel';
 import AttributeEditor from '@/components/map/AttributeEditor';
+import AreaIntelligence, { fetchAreaData, type AreaData } from '@/components/map/AreaIntelligence';
 
 // Lazy load ProjectManager (includes Prisma/database logic)
 const ProjectManager = dynamic(() => import('@/components/map/ProjectManager'), {
@@ -59,8 +60,13 @@ export default function Home() {
   const [editingFeature, setEditingFeature] = useState<any>(null);
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
 
+  // Area Intelligence
+  const [areaIntelligenceMode, setAreaIntelligenceMode] = useState(false);
+  const [areaIntelligenceData, setAreaIntelligenceData] = useState<AreaData | null>(null);
+  const [isLoadingAreaData, setIsLoadingAreaData] = useState(false);
+
   // Collaboration
-  const { isConnected, currentUser, broadcast, onEvent } = useCollaboration();
+  const { isConnected, currentUser, broadcast, onEvent} = useCollaboration();
 
   const addLog = (msg: string) => {
     console.log('[DEBUG]', msg);
@@ -276,14 +282,22 @@ export default function Home() {
 
     let tileUrl = basemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-    // Replace {time} placeholder with today's date (for NASA GIBS)
+    // Replace {time} placeholder
     if (tileUrl.includes('{time}')) {
-      const today = new Date();
-      // Use yesterday's date to ensure data availability
-      today.setDate(today.getDate() - 1);
-      const timeString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      tileUrl = tileUrl.replace('{time}', timeString);
-      addLog(`Using date for satellite imagery: ${timeString}`);
+      if (basemap.id.includes('rainviewer')) {
+        // RainViewer uses Unix timestamp (current time for latest radar)
+        const timestamp = Math.floor(Date.now() / 1000);
+        tileUrl = tileUrl.replace('{time}', String(timestamp));
+        addLog(`Using timestamp for RainViewer: ${timestamp}`);
+      } else {
+        // NASA GIBS uses YYYY-MM-DD format
+        const today = new Date();
+        // Use yesterday's date to ensure data availability
+        today.setDate(today.getDate() - 1);
+        const timeString = today.toISOString().split('T')[0];
+        tileUrl = tileUrl.replace('{time}', timeString);
+        addLog(`Using date for satellite imagery: ${timeString}`);
+      }
     }
 
     addLog(`Using tile URL: ${tileUrl}`);
@@ -427,6 +441,30 @@ export default function Home() {
 
       map.current.on('error', (e) => {
         addLog(`Map error: ${e.error?.message || JSON.stringify(e)}`);
+      });
+
+      // Area Intelligence click handler
+      map.current.on('click', async (e) => {
+        if (!areaIntelligenceMode) return;
+
+        setIsLoadingAreaData(true);
+        addLog(`Fetching area data for: ${e.lngLat.lat.toFixed(6)}, ${e.lngLat.lng.toFixed(6)}`);
+
+        try {
+          const data = await fetchAreaData(e.lngLat.lng, e.lngLat.lat);
+          setAreaIntelligenceData(data);
+          setAreaIntelligenceMode(false); // Auto-disable after getting info
+          toast.success('Area data loaded', {
+            description: 'Comprehensive information retrieved'
+          });
+        } catch (error: any) {
+          toast.error('Failed to fetch area data', {
+            description: error.message
+          });
+          addLog(`Area data fetch failed: ${error.message}`);
+        } finally {
+          setIsLoadingAreaData(false);
+        }
       });
 
       map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -677,14 +715,22 @@ export default function Home() {
     // Change the basemap style while keeping layers
     let tileUrl = newBasemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-    // Replace {time} placeholder with today's date (for NASA GIBS)
+    // Replace {time} placeholder
     if (tileUrl.includes('{time}')) {
-      const today = new Date();
-      // Use yesterday's date to ensure data availability
-      today.setDate(today.getDate() - 1);
-      const timeString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      tileUrl = tileUrl.replace('{time}', timeString);
-      addLog(`Using date for satellite imagery: ${timeString}`);
+      if (newBasemap.id.includes('rainviewer')) {
+        // RainViewer uses Unix timestamp (current time for latest radar)
+        const timestamp = Math.floor(Date.now() / 1000);
+        tileUrl = tileUrl.replace('{time}', String(timestamp));
+        addLog(`Using timestamp for RainViewer: ${timestamp}`);
+      } else {
+        // NASA GIBS uses YYYY-MM-DD format
+        const today = new Date();
+        // Use yesterday's date to ensure data availability
+        today.setDate(today.getDate() - 1);
+        const timeString = today.toISOString().split('T')[0];
+        tileUrl = tileUrl.replace('{time}', timeString);
+        addLog(`Using date for satellite imagery: ${timeString}`);
+      }
     }
 
     const newStyle = {
@@ -1714,6 +1760,13 @@ export default function Home() {
           onLayerOpacityChange={handleLayerOpacityChange}
           onLayerRemove={handleLayerRemove}
           onAddLayer={handleAddLayer}
+        />
+        <AreaIntelligence
+          onRequestAreaInfo={() => setAreaIntelligenceMode(!areaIntelligenceMode)}
+          isActive={areaIntelligenceMode}
+          areaData={areaIntelligenceData}
+          isLoading={isLoadingAreaData}
+          onClear={() => setAreaIntelligenceData(null)}
         />
       </div>
 

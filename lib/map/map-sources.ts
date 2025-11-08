@@ -336,6 +336,42 @@ export const AGRICULTURE_ENVIRONMENT_BASEMAPS: MapSource[] = [
 ];
 
 /**
+ * Weather and Climate basemaps
+ */
+export const WEATHER_BASEMAPS: MapSource[] = [
+  {
+    id: 'noaa-radar',
+    label: 'Weather Radar (NOAA)',
+    type: 'raster',
+    tileUrl: 'https://nowcoast.noaa.gov/arcgis/rest/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/tile/{z}/{y}/{x}',
+    license: 'Open',
+    attribution: [
+      { text: '© NOAA', url: 'https://www.noaa.gov/', required: true },
+      { text: 'NEXRAD Weather Radar', url: 'https://nowcoast.noaa.gov/', required: true },
+    ],
+    maxZoom: 12,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Real-time weather radar reflectivity (US, updates every 4 minutes)',
+  },
+  {
+    id: 'rainviewer-radar',
+    label: 'Precipitation Radar (Global)',
+    type: 'raster',
+    tileUrl: 'https://tilecache.rainviewer.com/v2/radar/{time}/256/{z}/{x}/{y}/2/1_1.png',
+    license: 'Free-View-Only',
+    attribution: [
+      { text: '© RainViewer', url: 'https://www.rainviewer.com/', required: true },
+      { text: 'Global Radar Data', url: '', required: true },
+    ],
+    maxZoom: 12,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Global precipitation radar (updates every 5 minutes, 1-min lag)',
+  },
+];
+
+/**
  * All basemap categories organized
  */
 export const BASEMAP_CATEGORIES: BasemapCategory[] = [
@@ -348,6 +384,11 @@ export const BASEMAP_CATEGORIES: BasemapCategory[] = [
     id: 'satellite',
     label: 'Satellite',
     sources: SATELLITE_BASEMAPS,
+  },
+  {
+    id: 'weather',
+    label: 'Weather & Climate',
+    sources: WEATHER_BASEMAPS,
   },
   {
     id: 'agriculture',
