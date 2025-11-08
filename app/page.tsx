@@ -274,7 +274,18 @@ export default function Home() {
       return;
     }
 
-    const tileUrl = basemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    let tileUrl = basemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    // Replace {time} placeholder with today's date (for NASA GIBS)
+    if (tileUrl.includes('{time}')) {
+      const today = new Date();
+      // Use yesterday's date to ensure data availability
+      today.setDate(today.getDate() - 1);
+      const timeString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      tileUrl = tileUrl.replace('{time}', timeString);
+      addLog(`Using date for satellite imagery: ${timeString}`);
+    }
+
     addLog(`Using tile URL: ${tileUrl}`);
 
     try {
@@ -664,7 +675,17 @@ export default function Home() {
     }
 
     // Change the basemap style while keeping layers
-    const tileUrl = newBasemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    let tileUrl = newBasemap.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    // Replace {time} placeholder with today's date (for NASA GIBS)
+    if (tileUrl.includes('{time}')) {
+      const today = new Date();
+      // Use yesterday's date to ensure data availability
+      today.setDate(today.getDate() - 1);
+      const timeString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      tileUrl = tileUrl.replace('{time}', timeString);
+      addLog(`Using date for satellite imagery: ${timeString}`);
+    }
 
     const newStyle = {
       version: 8,

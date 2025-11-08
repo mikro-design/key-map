@@ -202,6 +202,51 @@ export const SATELLITE_BASEMAPS: MapSource[] = [
     selfHostable: false,
     description: 'Satellite imagery with vector labels overlay',
   },
+  {
+    id: 'noaa-goes-composite',
+    label: 'GOES Satellite (NOAA)',
+    type: 'raster',
+    tileUrl: 'https://nowcoast.noaa.gov/arcgis/rest/services/nowcoast/sat_meteo_imagery_time/MapServer/tile/{z}/{y}/{x}',
+    license: 'Open',
+    attribution: [
+      { text: '© NOAA', url: 'https://www.noaa.gov/', required: true },
+      { text: 'GOES-East/West Composite', url: 'https://nowcoast.noaa.gov/', required: true },
+    ],
+    maxZoom: 10,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'Real-time GOES-East and GOES-West satellite imagery (15-min updates)',
+  },
+  {
+    id: 'nasa-gibs-modis',
+    label: 'MODIS True Color (NASA)',
+    type: 'raster',
+    tileUrl: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+    license: 'Open',
+    attribution: [
+      { text: '© NASA EOSDIS GIBS', url: 'https://www.earthdata.nasa.gov/gibs', required: true },
+      { text: 'MODIS/Terra', url: 'https://modis.gsfc.nasa.gov/', required: true },
+    ],
+    maxZoom: 9,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'NASA MODIS true color imagery (daily, 250m resolution)',
+  },
+  {
+    id: 'nasa-gibs-viirs',
+    label: 'VIIRS True Color (NASA)',
+    type: 'raster',
+    tileUrl: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+    license: 'Open',
+    attribution: [
+      { text: '© NASA EOSDIS GIBS', url: 'https://www.earthdata.nasa.gov/gibs', required: true },
+      { text: 'VIIRS/Suomi NPP', url: 'https://www.earthdata.nasa.gov/data/instruments/viirs', required: true },
+    ],
+    maxZoom: 9,
+    tileSize: 256,
+    selfHostable: false,
+    description: 'NASA VIIRS true color imagery (daily, 750m resolution)',
+  },
 ];
 
 /**
